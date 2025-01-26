@@ -82,7 +82,7 @@ func main() {
 	transactionRepo := postgresRepo.NewTransactionRepository(dbConn)
 
 	// Build service Layer
-	svc := account.NewService(transactionRepo, accountRepo)
+	svc := account.NewService(accountRepo, transactionRepo, dbConn)
 	rest.NewAccountHandler(e, svc)
 
 	// Start Server
