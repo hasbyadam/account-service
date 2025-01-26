@@ -15,8 +15,8 @@ type ResponseError struct {
 
 // AccountService represent the Account's usecases
 type AccountService interface {
-	CreateAccount(nama, nik, noHP, noRekening string, saldo float64) error
-	Transaction(accountNo string, nominal float64) error
+	CreateAccount(nama, nik, noHP string) (string, error)
+	Transaction(accountNo string, nominal float64) (float64, error)
 	GetSaldo(accountNo string) (float64, error)
 }
 
@@ -43,13 +43,13 @@ func (h *AccountHandler) CreateAccount(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ResponseError{Remark: err.Error()})
 	}
 
-	err := h.Service.CreateAccount(account.Nama, account.NIK, account.NoHP, account.NoRekening, account.Saldo)
+	noRekening, err := h.Service.CreateAccount(account.Nama, account.NIK, account.NoHP)
 	if err != nil {
 		logrus.Errorf("Failed to create account: %v", err)
-		return c.JSON(http.StatusInternalServerError, ResponseError{Remark: err.Error()})
+		return handleServiceError(c, err)
 	}
 
-	return c.JSON(http.StatusCreated, account)
+	return c.JSON(http.StatusOK, map[string]string{"no_rekening": noRekening})
 }
 
 // Withdraw handles the withdrawal transaction for an account
@@ -64,13 +64,13 @@ func (h *AccountHandler) Withdraw(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ResponseError{Remark: err.Error()})
 	}
 
-	err := h.Service.Transaction(req.NoRekening, req.Nominal*-1)
+	saldo, err := h.Service.Transaction(req.NoRekening, req.Nominal*-1)
 	if err != nil {
 		logrus.Errorf("Failed to process transaction: %v", err)
-		return c.JSON(http.StatusInternalServerError, ResponseError{Remark: err.Error()})
+		return handleServiceError(c, err)
 	}
 
-	return c.JSON(http.StatusOK, ResponseError{Remark: "Transaction successful"})
+	return c.JSON(http.StatusOK, map[string]float64{"saldo": saldo})
 }
 
 // Withdraw handles the withdrawal transaction for an account
@@ -85,13 +85,13 @@ func (h *AccountHandler) Deposit(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ResponseError{Remark: err.Error()})
 	}
 
-	err := h.Service.Transaction(req.NoRekening, req.Nominal)
+	saldo, err := h.Service.Transaction(req.NoRekening, req.Nominal)
 	if err != nil {
 		logrus.Errorf("Failed to process transaction: %v", err)
-		return c.JSON(http.StatusInternalServerError, ResponseError{Remark: err.Error()})
+		return handleServiceError(c, err)
 	}
 
-	return c.JSON(http.StatusOK, ResponseError{Remark: "Transaction successful"})
+	return c.JSON(http.StatusOK, map[string]float64{"saldo": saldo})
 }
 
 // GetSaldo handles retrieving the saldo for an account
@@ -101,8 +101,17 @@ func (h *AccountHandler) GetSaldo(c echo.Context) error {
 	saldo, err := h.Service.GetSaldo(noRekening)
 	if err != nil {
 		logrus.Errorf("Failed to retrieve saldo for no_rekening %s: %v", noRekening, err)
-		return c.JSON(http.StatusInternalServerError, ResponseError{Remark: err.Error()})
+		return handleServiceError(c, err)
 	}
 
 	return c.JSON(http.StatusOK, map[string]float64{"saldo": saldo})
+}
+
+// handleServiceError handles service errors and maps them to appropriate HTTP responses
+func handleServiceError(c echo.Context, err error) error {
+    statusCode, ok := domain.ErrorStatusCodeMap[err]
+    if !ok {
+        statusCode = http.StatusInternalServerError
+    }
+    return c.JSON(statusCode, ResponseError{Remark: err.Error()})
 }
