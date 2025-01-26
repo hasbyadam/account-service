@@ -27,9 +27,11 @@ func (r *AccountRepository) InsertAccount(account *domain.Account) error {
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
     `
 	_, err := r.DB.Exec(query, account.ID, account.Nama, account.NIK, account.NoHP, account.NoRekening, account.CreatedAt, account.UpdatedAt, account.Saldo)
-	if strings.Contains(err.Error(), "duplicate key value") {
-		logrus.Errorf("Duplicate NIK or No HP: %v", err)
-		return domain.ErrDuplicateNIKOrNoHP
+	if err != nil {
+		if strings.Contains(err.Error(), "duplicate key value") {
+			logrus.Errorf("Duplicate NIK or No HP: %v", err)
+			return domain.ErrDuplicateNIKOrNoHP
+		}
 	}
 	logrus.Infof("Successfully inserted account with ID: %s", account.ID)
 	return nil

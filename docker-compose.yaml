@@ -4,7 +4,7 @@ services:
     container_name: test
     entrypoint: ./bin -port=:8086 -timeout=5
     ports:
-      - 8080:8080
+      - 8086:8086
     depends_on:
       - postgres_db
   postgres_db:
@@ -16,7 +16,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: postgres
     ports:
-      - '5432:5432'
+      - '54320:5432'
     volumes:
       - postgres_db:/var/lib/postgresql/data
 volumes:
